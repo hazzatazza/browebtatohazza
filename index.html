@@ -137,7 +137,7 @@
 	<script type='text/javascript' src='Brotato.js'></script>
 	<script type='text/javascript'>//<![CDATA[
 
-		// Matches the exact 10-part lowercase configuration on your GitHub [Brotato.zip.001 - .010]
+		// Targets your 10 active repository parts [.zip.001 to .zip.010]
 		const splitParts = Array.from({length: 10}, (_, i) => `Brotato.zip.${String(i + 1).padStart(3, '0')}`);
 
 		const GODOT_CONFIG = {
@@ -156,25 +156,22 @@
 
 		var engine = new Engine(GODOT_CONFIG);
 
-		// Dynamic file interceptor stream
+		// Binary Object Stream Patching Engine Overrider
 		engine.init = async function(basePath) {
-			console.log("Stitching split assets stream from clean server blocks...");
+			console.log("Downloading split asset streams into binary objects...");
 			
-			const buffers = await Promise.all(splitParts.map(part => fetch(part).then(res => {
+			// Pull chunks natively as raw payloads rather than text arrays
+			const blobs = await Promise.all(splitParts.map(part => fetch(part).then(res => {
 				if(!res.ok) throw new Error(`Network block failure: ${part}`);
-				return res.arrayBuffer();
+				return res.blob();
 			})));
 			
-			const totalSize = buffers.reduce((sum, buf) => sum + buf.byteLength, 0);
-			const combinedData = new Uint8Array(totalSize);
+			// Stitch the segments into a single unified binary container
+			const masterBlob = new Blob(blobs, { type: "application/octet-stream" });
+			const fileArrayBuffer = await masterBlob.arrayBuffer();
 			
-			let offset = 0;
-			for (const buf of buffers) {
-				combinedData.set(new Uint8Array(buf), offset);
-				offset += buf.byteLength;
-			}
-			
-			this.preloadFile(combinedData, "Brotato.pck");
+			// Inject straight into the virtual filesystem without string conversions
+			this.preloadFile(new Uint8Array(fileArrayBuffer), "Brotato.pck");
 			return Engine.prototype.init.call(this, basePath);
 		};
 
